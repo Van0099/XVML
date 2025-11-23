@@ -744,4 +744,150 @@ namespace XVML
 					.Replace(">", "&gt;");
 		}
 	}
+
+	public static class JsonToXVMLConverter
+	{
+		/// <summary>
+		/// Parse JSON string and convert to XVMLDocument.
+		/// Rules:
+		/// - properties starting with '@' => attributes (e.g. "@id":"1" -> id="1")
+		/// - property "#text" => element inner text
+		/// - arrays => repeated child elements with the property name
+		/// - primitives => inner text of an element
+		/// </summary>
+		public static XVMLDocument FromJsonString(string json, string rootName = "__root__")
+		{
+			if (string.IsNullOrWhiteSpace(json)) return new XVMLDocument();
+
+			var token = JToken.Parse(json);
+			return FromJToken(token, rootName);
+		}
+
+		public static XVMLDocument FromJToken(JToken token, string rootName = "__root__")
+		{
+			var doc = new XVMLDocument();
+
+			if (token is JObject job)
+			{
+				foreach (var p in job.Properties())
+					AddPropertyToParent(doc.Element, p.Name, p.Value);
+			}
+			else if (token is JArray arr)
+			{
+				// top-level array -> create many elements named rootName
+				foreach (var item in arr)
+					doc.Element.Children.Add(ConvertToken(rootName, item));
+			}
+			else // primitive
+			{
+				var el = new XVMLElement { Name = rootName, RawInnerText = token.ToString() };
+				doc.Element.Children.Add(el);
+			}
+
+			return doc;
+		}
+
+		private static void AddPropertyToParent(XVMLElement parent, string propName, JToken value)
+		{
+			if (value is JArray arr)
+			{
+				// for arrays — create repeated elements with same name
+				foreach (var item in arr)
+				{
+					if (item is JValue)
+					{
+						var simple = new XVMLElement { Name = propName, RawInnerText = ConvertJValueToString((JValue)item) };
+						parent.Children.Add(simple);
+					}
+					else
+					{
+						parent.Children.Add(ConvertToken(propName, item));
+					}
+				}
+			}
+			else if (value is JObject obj)
+			{
+				parent.Children.Add(ConvertToken(propName, obj));
+			}
+			else // JValue
+			{
+				var v = value as JValue;
+				var el = new XVMLElement { Name = propName, RawInnerText = ConvertJValueToString(v) };
+				parent.Children.Add(el);
+			}
+		}
+
+		private static XVMLElement ConvertToken(string name, JToken token)
+		{
+			var el = new XVMLElement { Name = name };
+
+			if (token is JObject obj)
+			{
+				foreach (var p in obj.Properties())
+				{
+					// attribute convention: keys that start with '@'
+					if (p.Name.Length > 1 && p.Name[0] == '@')
+					{
+						var attrName = p.Name.Substring(1);
+						// attribute value — convert to plain string
+						el.Attributes[attrName] = p.Value.Type == JTokenType.Null ? "" : ConvertJValueToString(p.Value as JValue ?? new JValue(p.Value.ToString()));
+					}
+					else if (p.Name == "#text")
+					{
+						// explicit inner text
+						el.RawInnerText = p.Value.Type == JTokenType.Null ? "" : ConvertJValueToString(p.Value as JValue ?? new JValue(p.Value.ToString()));
+					}
+					else
+					{
+						AddPropertyToParent(el, p.Name, p.Value);
+					}
+				}
+			}
+			else if (token is JArray arr)
+			{
+				// array at this position -> create repeated children with the same name
+				foreach (var item in arr)
+				{
+					if (item is JValue)
+					{
+						var child = new XVMLElement { Name = name, RawInnerText = ConvertJValueToString((JValue)item) };
+						el.Children.Add(child);
+					}
+					else
+					{
+						el.Children.Add(ConvertToken(name, item));
+					}
+				}
+			}
+			else if (token is JValue v)
+			{
+				el.RawInnerText = ConvertJValueToString(v);
+			}
+
+			return el;
+		}
+
+		private static string ConvertJValueToString(JValue? v)
+		{
+			if (v == null || v.Type == JTokenType.Null) return string.Empty;
+
+			// Keep numbers/culture invariant formatting for floats
+			if (v.Type == JTokenType.Float)
+				return Convert.ToDouble(v.Value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+
+			if (v.Type == JTokenType.Boolean)
+				return v.Value<bool>() ? "true" : "false";
+
+			return v.ToString() ?? string.Empty;
+		}
+
+		/// <summary>
+		/// Convenience: parse JSON and save as .xvml (uses XVMLDocument.Save)
+		/// </summary>
+		public static void SaveJsonAsXVMLFile(string json, string filePath, string rootName = "__root__", bool prettyPrint = true)
+		{
+			var doc = FromJsonString(json, rootName);
+			doc.Save(filePath, prettyPrint);
+		}
+	}
 }
