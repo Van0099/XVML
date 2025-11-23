@@ -7,12 +7,12 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
 
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
 	  
     <Authors>Van009</Authors>
     <Company>Van009</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Description>XVML parser library</Description>
+    <Description>Official library for parsing XVML files.</Description>
   </PropertyGroup>
 
   <ItemGroup>
