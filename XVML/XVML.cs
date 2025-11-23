@@ -890,4 +890,171 @@ namespace XVML
 			doc.Save(filePath, prettyPrint);
 		}
 	}
+
+	public static class XVMLToJsonConverter
+	{
+		/// <summary>
+		/// Convert XVMLDocument to JSON string
+		/// Rules:
+		/// - Element attributes become properties prefixed with '@'
+		/// - Element inner text becomes "#text" property
+		/// - Child elements become nested objects or arrays
+		/// - Multiple elements with same name become arrays
+		/// </summary>
+		public static string ToJsonString(XVMLDocument document, Formatting formatting = Formatting.Indented)
+		{
+			var rootObject = ConvertElementToJObject(document.Element);
+			return rootObject.ToString(formatting);
+		}
+
+		/// <summary>
+		/// Convert XVMLNode to JSON string
+		/// </summary>
+		public static string ToJsonString(XVMLNode node, Formatting formatting = Formatting.Indented)
+		{
+			var token = ConvertElementToJToken(node.Element);
+			return token.ToString(formatting);
+		}
+
+		/// <summary>
+		/// Convert XVMLDocument to JObject
+		/// </summary>
+		public static JObject ToJObject(XVMLDocument document)
+		{
+			return ConvertElementToJObject(document.Element);
+		}
+
+		/// <summary>
+		/// Convert XVMLNode to JToken
+		/// </summary>
+		public static JToken ToJToken(XVMLNode node)
+		{
+			return ConvertElementToJToken(node.Element);
+		}
+
+		private static JObject ConvertElementToJObject(XVMLElement element)
+		{
+			var obj = new JObject();
+
+			// Add attributes as properties prefixed with '@'
+			foreach (var attr in element.Attributes)
+			{
+				obj.Add("@" + attr.Key, attr.Value);
+			}
+
+			// Process children - group by name to detect arrays
+			var childrenGroups = element.Children.GroupBy(c => c.Name);
+
+			foreach (var group in childrenGroups)
+			{
+				var childrenList = group.ToList();
+
+				if (childrenList.Count == 1)
+				{
+					// Single child - convert to object or value
+					var child = childrenList[0];
+					obj[group.Key] = ConvertElementToJToken(child);
+				}
+				else
+				{
+					// Multiple children with same name - create array
+					var array = new JArray();
+					foreach (var child in childrenList)
+					{
+						array.Add(ConvertElementToJToken(child));
+					}
+					obj[group.Key] = array;
+				}
+			}
+
+			// Add inner text if present
+			if (!string.IsNullOrWhiteSpace(element.RawInnerText))
+			{
+				// If we already have content, add as #text property
+				if (obj.HasValues || element.Attributes.Count > 0)
+				{
+					obj["#text"] = ParseInnerTextToJValue(element.RawInnerText);
+				}
+				else
+				{
+					// If element only has text content, return just the value
+					return JObject.FromObject(new { value = ParseInnerTextToJValue(element.RawInnerText) });
+				}
+			}
+
+			return obj;
+		}
+
+		private static JToken ConvertElementToJToken(XVMLElement element)
+		{
+			// If element has attributes, children, or mixed content, use object representation
+			if (element.Attributes.Count > 0 || element.Children.Count > 0 ||
+				(!string.IsNullOrWhiteSpace(element.RawInnerText) && element.Children.Count > 0))
+			{
+				return ConvertElementToJObject(element);
+			}
+
+			// If element only has text content, return as simple value
+			if (!string.IsNullOrWhiteSpace(element.RawInnerText))
+			{
+				return ParseInnerTextToJValue(element.RawInnerText);
+			}
+
+			// Empty element without content
+			return string.IsNullOrEmpty(element.Name) ? JValue.CreateNull() : new JObject();
+		}
+
+		private static JValue ParseInnerTextToJValue(string innerText)
+		{
+			if (string.IsNullOrWhiteSpace(innerText))
+				return JValue.CreateString(string.Empty);
+
+			var trimmed = innerText.Trim();
+
+			// Try to parse as boolean
+			if (bool.TryParse(trimmed, out bool boolResult))
+				return new JValue(boolResult);
+
+			// Try to parse as integer
+			if (long.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longResult))
+				return new JValue(longResult);
+
+			// Try to parse as double
+			if (double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out double doubleResult))
+				return new JValue(doubleResult);
+
+			// Try to parse as JSON null
+			if (trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
+				return JValue.CreateNull();
+
+			// Return as string
+			return new JValue(trimmed);
+		}
+
+		/// <summary>
+		/// Save XVML document as JSON file
+		/// </summary>
+		public static void SaveAsJsonFile(XVMLDocument document, string filePath, Formatting formatting = Formatting.Indented)
+		{
+			var json = ToJsonString(document, formatting);
+			var dir = Path.GetDirectoryName(Path.GetFullPath(filePath));
+			if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+				Directory.CreateDirectory(dir);
+
+			File.WriteAllText(filePath, json, Encoding.UTF8);
+		}
+
+		/// <summary>
+		/// Save XVML node as JSON file
+		/// </summary>
+		public static void SaveAsJsonFile(XVMLNode node, string filePath, Formatting formatting = Formatting.Indented)
+		{
+			var json = ToJsonString(node, formatting);
+			var dir = Path.GetDirectoryName(Path.GetFullPath(filePath));
+			if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+				Directory.CreateDirectory(dir);
+
+			File.WriteAllText(filePath, json, Encoding.UTF8);
+		}
+	}
 }
