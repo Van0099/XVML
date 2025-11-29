@@ -541,6 +541,76 @@ namespace XVML
 	{
 		internal XVMLElement Element { get; }
 
+		/// <summary>
+		/// Creates and adds a child element with the specified name and optional value.
+		/// Returns the created XVMLNode for further use.
+		/// </summary>
+		public XVMLNode AddChild(string name, string value = "")
+		{
+			var childElement = new XVMLElement
+			{
+				Name = name,
+				RawInnerText = value
+			};
+			var childNode = new XVMLNode(childElement);
+			Children.Add(childNode);
+			return childNode;
+		}
+
+		/// <summary>
+		/// Finds the first child with the specified name. Returns null if not found.
+		/// </summary>
+		public XVMLNode? GetChild(string name)
+		{
+			return Children.FirstOrDefault(c => c.Name == name);
+		}
+
+		/// <summary>
+		/// Removes children elements. If 'name' is specified, removes only children with that name.
+		/// If 'name' is null or empty, removes all children.
+		/// </summary>
+		public void RemoveChildren(string? name = null)
+		{
+			if (string.IsNullOrEmpty(name))
+			{
+				Element.Children.Clear();
+			}
+			else
+			{
+				Element.Children.RemoveAll(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+			}
+
+			_childrenCache = null;
+			_childrenCacheVersion = -1;
+		}
+
+		/// <summary>
+		/// Checks if there is at least one child with the specified name.
+		/// </summary>
+		public bool HasChild(string name)
+		{
+			return Children.Any(c => c.Name == name);
+		}
+
+		/// <summary>
+		/// Creates a nested path of nodes by names and returns the last node in the path.
+		/// Example: root.CreatePath("World", "Player", "Inventory") will create all levels if missing.
+		/// </summary>
+		public XVMLNode CreatePath(params string[] names)
+		{
+			var current = this;
+			foreach (var name in names)
+			{
+				var child = current.GetChild(name);
+				if (child == null)
+				{
+					child = current.AddChild(name);
+				}
+				current = child;
+			}
+			return current;
+		}
+
 		public XVMLNode(string name)
 		{
 			Element = new XVMLElement { Name = name };
