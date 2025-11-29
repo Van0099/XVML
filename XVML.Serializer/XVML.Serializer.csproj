@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.1;net8.0;net9.0;net10.0;</TargetFrameworks>
+
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+
+		<Version>0.1.0</Version>
+
+		<Authors>Van009</Authors>
+		<Company>Van009</Company>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Description>Lightweight library for serializing and deserializing C# objects to human-readable XVML format.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="XVML.Serializer.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="XVML.Serializer.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="XVML" Version="0.2.3" />
+	</ItemGroup>
+</Project>

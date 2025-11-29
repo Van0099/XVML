@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36603.0 d17.14
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11205.157 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XVML", "XVML\XVML.csproj", "{90C4CA16-EEDF-45CE-A081-A22CF30DCE5C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XVML.Serializer", "XVML.Serializer\XVML.Serializer.csproj", "{C687081B-B2E3-44D2-9B76-31F9435073ED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{90C4CA16-EEDF-45CE-A081-A22CF30DCE5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90C4CA16-EEDF-45CE-A081-A22CF30DCE5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90C4CA16-EEDF-45CE-A081-A22CF30DCE5C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C687081B-B2E3-44D2-9B76-31F9435073ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C687081B-B2E3-44D2-9B76-31F9435073ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C687081B-B2E3-44D2-9B76-31F9435073ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C687081B-B2E3-44D2-9B76-31F9435073ED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
