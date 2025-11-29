@@ -566,6 +566,16 @@ namespace XVML
 		}
 
 		/// <summary>
+		/// Returns all child nodes with the specified name.
+		/// </summary>
+		public List<XVMLNode> GetChilds(string name)
+		{
+			return Children
+				.Where(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+				.ToList();
+		}
+
+		/// <summary>
 		/// Removes children elements. If 'name' is specified, removes only children with that name.
 		/// If 'name' is null or empty, removes all children.
 		/// </summary>
