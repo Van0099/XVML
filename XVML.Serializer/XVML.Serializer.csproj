@@ -7,7 +7,7 @@
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
 
-		<Version>0.1.0</Version>
+		<Version>0.1.1</Version>
 
 		<Authors>Van009</Authors>
 		<Company>Van009</Company>
@@ -16,15 +16,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Compile Remove="XVML.Serializer.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Include="XVML.Serializer.cs" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-		<PackageReference Include="XVML" Version="0.2.3" />
+		<PackageReference Include="XVML" Version="0.2.4" />
 	</ItemGroup>
 </Project>

@@ -246,16 +246,25 @@ namespace XVML
 		private static readonly Regex TagClose = new Regex(@"</([a-zA-Z0-9_:-]+)>", RegexOptions.Compiled);
 		private static readonly Regex AttrRegex = new Regex(@"([a-zA-Z0-9_:-]+)\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s/>]+))|([a-zA-Z0-9_:-]+)", RegexOptions.Compiled);
 
-		public static List<XVMLElement> ParseFile(string path)
+		/// <summary>
+		/// Parse XVML file.
+		/// recover=true  -> tolerant parsing (tries to repair broken documents)
+		/// recover=false -> strict parsing (throws exception on errors)
+		/// </summary>
+		public static List<XVMLElement> ParseFile(string path, bool recover = true)
 		{
 			using var reader = new StreamReader(path, Encoding.UTF8);
+
 			var sb = new StringBuilder();
 			string? line;
+
 			while ((line = reader.ReadLine()) != null)
 				sb.AppendLine(line);
+
 			var text = sb.ToString();
 			var basePath = Path.GetDirectoryName(Path.GetFullPath(path)) ?? string.Empty;
-			return Parse(text, basePath);
+
+			return Parse(text, basePath, recover);
 		}
 
 		internal static string XmlDecode(string s) =>
@@ -266,7 +275,7 @@ namespace XVML
 		 .Replace("&apos;", "'") ?? "";
 
 		// single-pass parse: build completedElements list and assign children by span
-		public static List<XVMLElement> Parse(string text, string basePath = "")
+		public static List<XVMLElement> Parse(string text, string basePath = "", bool recover = true)
 		{
 			var completed = new List<(XVMLElement elem, int start, int end)>();
 			var stack = new Stack<(string name, int openIndex, int tagEndIndex, Dictionary<string, string> attrs)>();
@@ -335,8 +344,11 @@ namespace XVML
 
 					if (stack.Count == 0)
 					{
-						// unmatched close - ignore
-						continue;
+						// unmatched closing tag
+						if (recover)
+							continue;
+						else
+							throw new FormatException($"Unmatched closing tag </{closeName}> at position {close.Index}");
 					}
 
 					// pop until matching open found
@@ -358,7 +370,13 @@ namespace XVML
 							}
 						}
 						while (temp.Count > 0) stack.Push(temp.Pop());
-						if (!found) continue; // unmatched close
+						if (!found) // unmatched close
+						{
+							if (recover)
+								continue;
+							else
+								throw new FormatException($"Mismatched closing tag </{closeName}> at position {close.Index}");
+						}
 					}
 
 					int innerStart = top.tagEndIndex;
@@ -446,6 +464,12 @@ namespace XVML
 				}
 			}
 
+			// In strict mode ensure there are no unclosed tags
+			if (!recover && stack.Count > 0)
+			{
+				var names = string.Join(", ", stack.Select(s => s.name));
+				throw new FormatException("Unclosed tags at end of document: " + names);
+			}
 			// remaining completed elements that were not assigned to a parent are roots
 			var roots = completed.OrderBy(c => c.start).Select(c => c.elem).ToList();
 
@@ -724,12 +748,26 @@ namespace XVML
 		// Public API for internal fast id lookup
 		public XVMLNode? GetById(string id) => _idIndex.TryGetValue(id, out var node) ? node : null;
 
+		/// <summary>
+		/// Load XVML document (recover mode enabled by default).
+		/// </summary>
 		public static XVMLDocument Load(string path)
 		{
-			var doc = new XVMLDocument();
-			if (!File.Exists(path)) return doc;
+			return Load(path, true);
+		}
 
-			var elements = XVMLParser.ParseFile(path);
+		/// <summary>
+		/// Load XVML document with explicit recovery mode.
+		/// </summary>
+		public static XVMLDocument Load(string path, bool recover)
+		{
+			var doc = new XVMLDocument();
+
+			if (!File.Exists(path))
+				return doc;
+
+			var elements = XVMLParser.ParseFile(path, recover);
+
 			if (elements.Count > 0)
 			{
 				if (elements.Count == 1 && elements[0].Name == "__root__")
@@ -742,6 +780,7 @@ namespace XVML
 					doc.Element.Children.AddRange(elements);
 				}
 			}
+
 			return doc;
 		}
 
@@ -764,6 +803,26 @@ namespace XVML
 			if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
 			File.WriteAllText(path, text, Encoding.UTF8);
+		}
+
+		/// <summary>
+		/// Convert document to XVML string.
+		/// </summary>
+		public string ToXVMLString(bool prettyPrint = true)
+		{
+			if (this.Element.Name == "__root__")
+			{
+				var sb = new StringBuilder();
+
+				foreach (var child in Element.Children)
+					sb.Append(prettyPrint ? SerializeNodePretty(child, 0) : SerializeNode(child));
+
+				return sb.ToString();
+			}
+			else
+			{
+				return prettyPrint ? SerializeNodePretty(Element, 0) : SerializeNode(Element);
+			}
 		}
 
 		private string SerializeNode(XVMLElement element)
@@ -1135,6 +1194,61 @@ namespace XVML
 				Directory.CreateDirectory(dir);
 
 			File.WriteAllText(filePath, json, Encoding.UTF8);
+		}
+	}
+
+	/// <summary>
+	/// High level serializer for converting .NET objects to/from XVML.
+	/// Uses Json.NET internally.
+	/// </summary>
+	public static class XVMLSerializer
+	{
+		/// <summary>
+		/// Serialize .NET object into XVMLDocument.
+		/// </summary>
+		public static XVMLDocument SerializeObjectToDocument<T>(T obj, string rootName = "__root__")
+		{
+			var token = obj == null
+				? JValue.CreateNull()
+				: JToken.FromObject(obj);
+
+			return JsonToXVMLConverter.FromJToken(token, rootName);
+		}
+
+		/// <summary>
+		/// Serialize object into XVML string.
+		/// </summary>
+		public static string SerializeObjectToString<T>(T obj, string rootName = "__root__", bool prettyPrint = true)
+		{
+			var doc = SerializeObjectToDocument(obj, rootName);
+			return doc.ToXVMLString(prettyPrint);
+		}
+
+		/// <summary>
+		/// Save object as XVML file.
+		/// </summary>
+		public static void SaveObjectAsXVMLFile<T>(T obj, string filePath, string rootName = "__root__", bool prettyPrint = true)
+		{
+			var doc = SerializeObjectToDocument(obj, rootName);
+			doc.Save(filePath, prettyPrint);
+		}
+
+		/// <summary>
+		/// Deserialize XVMLDocument into .NET object.
+		/// </summary>
+		public static T DeserializeDocumentToObject<T>(XVMLDocument doc)
+		{
+			var j = XVMLToJsonConverter.ToJObject(doc);
+			return j.ToObject<T>();
+		}
+
+		/// <summary>
+		/// Load XVML file and deserialize directly to object.
+		/// </summary>
+		public static T DeserializeFileToObject<T>(string path, bool recover = true)
+		{
+			var doc = XVMLDocument.Load(path, recover);
+			return DeserializeDocumentToObject<T>(doc);
 		}
 	}
 }

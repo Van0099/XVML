@@ -83,7 +83,7 @@ namespace XVML.Serializer
 
 			foreach (var prop in props)
 			{
-				var childNodes = node.GetChildren(prop.Name);
+				var childNodes = node.GetChilds(prop.Name);
 				if (childNodes.Count == 0) continue;
 
 				if (IsSimpleType(prop.PropertyType))
