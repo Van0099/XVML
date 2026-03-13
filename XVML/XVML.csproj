@@ -7,15 +7,20 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
 
-    <Version>0.2.4</Version>
+    <Version>0.3.0</Version>
 	  
     <Authors>Van009</Authors>
     <Company>Van009</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>Official library for parsing XVML files.</Description>
+
+	<PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="" />
+	</ItemGroup>
 </Project>
